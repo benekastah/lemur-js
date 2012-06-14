@@ -1,27 +1,28 @@
 require 'coffee-script'
 puts = console.log.bind console
-Parser = require '../src/parser/parser'
+parser = require '../src/parser/parser'
+JisonParser = (require 'jison').Parser
 
-p = new Parser {
+p = parser {
   lexer: [
     [/\s+/, "/* skip whitespace */"]
     [/[0-9]+(\.[0-9]+)?\b/, "NUMBER"]
-    ["*"]
-    ["/"]
-    ["-"]
-    ["+"]
-    ["^"]
-    ["("]
-    [")"]
+    ["*", "MULT"]
+    ["/", "DIV"]
+    ["-", "MINUS"]
+    ["+", "ADD"]
+    ["^", "POW"]
+    ["(", "OGROUP"]
+    [")", "CGROUP"]
     ["PI"]
     ["E"]
     ["<<EOF>>", "EOF"]
-    [".", "INVALID"]
+    [/./, "INVALID"]
   ],
   operators: [
-    "left + -"
-    "left * /"
-    "left ^"
+    "left ADD MINUS"
+    "left MULT DIV"
+    "left POW"
     "left UMINUS"
   ],
   start: "expressions"
@@ -30,13 +31,13 @@ p = new Parser {
       ["e EOF"]
     ]
     e: [
-      ["e + e", -> $1 + $3]
-      ["e - e", -> $1 - $3]
-      ["e * e", -> $1 * $3]
-      ["e / e", -> $1 / $3]
-      ["e ^ e", -> Math.pow $1, $3]
-      ["- e", (-> -$2), prec: 'UMINUS']
-      ["( e )", -> $2]
+      ["e ADD e", -> $1 + $3]
+      ["e MINUS e", -> $1 - $3]
+      ["e MULT e", -> $1 * $3]
+      ["e DIV e", -> $1 / $3]
+      ["e POW e", -> Math.pow $1, $3]
+      ["MINUS e", (-> -$2), prec: 'UMINUS']
+      ["OGROUP e CGROUP", -> $2]
       ["NUMBER", -> Number yytext]
       ["E", -> Math.E]
       ["PI", -> Math.PI]
@@ -44,4 +45,4 @@ p = new Parser {
   }
 }
 
-puts p
+puts p.parse "10 ^ 0"
