@@ -2,15 +2,13 @@ root = global ? window
 root.root = root
 
 L = {}
-if exports? and module?
-  module.exports = L
-else if provide?
-  provide "lemur", L
 
+## Do some setup of the global lemur object
 root.lemur = L
-
 core = L.core = {}
+L.compiler = {}
 
+## Useful utility functions
 do ->
   {toString} = Object::
   core.to_type = (o) ->
@@ -19,6 +17,21 @@ do ->
     s.toLowerCase()
     
 core.s_trim = String::trim ? -> String(this).replace(/^\s+/, '').replace(/\s+$/, '')
+
+do ->
+  Noop = ->
+  core.clone = Object.create ? (o) ->
+    Noop:: = o
+    new Noop()
     
-if not String::trim
-  String::trim = (s) -> s.replace(/^\s+/, '').replace(/\s+$/, '')
+    
+## Set up node.js
+if process?.title is "node"
+  require "./compiler"
+  require "./parser"
+    
+## Export module
+if exports? and module?
+  module.exports = L
+else if provide?
+  provide "lemur", L

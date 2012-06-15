@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+ORIG_DIR=$(pwd)
+
+SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$SOURCE" ] ; do SOURCE="$(readlink "$SOURCE")"; done
+DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+
+cd src
+coffee -j ../build/lemur.js -c core parser/parser compiler/construct compiler/array compiler/class compiler/function compiler/null compiler/number compiler/object compiler/regex compiler/scope compiler/string compiler/var
+
+cd $ORIG_DIR
