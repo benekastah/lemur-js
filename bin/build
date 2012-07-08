@@ -1,12 +1,23 @@
-#!/usr/bin/env bash
+#!/usr/bin/env ruby
 
-ORIG_DIR=$(pwd)
+def get_files(dir, prepend = [])
+	d = Dir.new dir
+	prepend = prepend.map { |item| item.sub /(\.coffee)?$/, ".coffee" }
+	files = prepend.concat d.map { |item|
+		if File.file?("#{dir}/#{item}") && /\.coffee$/ =~ item
+			item
+		else
+			nil
+		end
+	}.find_all { |x| !x.nil? }
+	files = files.uniq
+	files.map { |f| "#{dir}/#{f}" }.join " "
+end
 
-SOURCE="${BASH_SOURCE[0]}"
-while [ -h "$SOURCE" ] ; do SOURCE="$(readlink "$SOURCE")"; done
-DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+dirname = "#{File.dirname(__FILE__)}/.."
+src = "#{dirname}/src"
+parser_scripts = get_files "#{src}/parser"
+compiler_scripts = get_files "#{src}/compiler", ["compiler", "construct"]
 
-cd src
-coffee -j ../build/lemur.js -c core parser/parser compiler/construct compiler/array compiler/class compiler/function compiler/null compiler/number compiler/object compiler/regex compiler/scope compiler/string compiler/var
-
-cd $ORIG_DIR
+puts "Building lemur..."
+system "coffee -j #{dirname}/build/lemur.js -c #{src}/core #{parser_scripts} #{compiler_scripts}"

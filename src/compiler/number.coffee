@@ -1,9 +1,14 @@
-L = lemur
-C = L.compiler
-
 class C.Number extends C.Construct
   constructor: (n) ->
     super
-    @value = Number n
+    if (L.core.to_type n) is "object"
+      o = n
+      {value, base} = o
+      if base
+        n = parseInt value, base
+      else
+        n = value
+
+    @value = +n
     
   compile: -> "#{@value}"

@@ -1,2 +1,3 @@
 require("coffee-script");
-require("./src/core")
+require(__dirname + "/build/lemur");
+module.exports = lemur;

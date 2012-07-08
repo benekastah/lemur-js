@@ -1,5 +1,7 @@
 require("coffee-script");
+
 var compiler_scripts = [
+  "compiler",
   "construct",
   "array",
   "class",
@@ -7,11 +9,14 @@ var compiler_scripts = [
   "null",
   "number",
   "object",
+  "operations",
   "regex",
   "scope",
   "string",
-  "var"
-]
+  "symbol"
+];
+
 for (var i = 0, len = compiler_scripts.length; i < len; i++) {
-  require("./" + compiler_scripts[i]);
+  require(__dirname + "/" + compiler_scripts[i]);
+  //console.log(__dirname + "/" + compiler_scripts[i]);
 }

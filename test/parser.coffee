@@ -45,4 +45,4 @@ p = parser {
   }
 }
 
-puts p.parse "10 ^ 0"
+puts p.parse "10 / 1.1"

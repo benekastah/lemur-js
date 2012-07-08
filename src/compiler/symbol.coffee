@@ -1,12 +1,8 @@
-L = lemur
-C = L.compiler
-
-class C.Var extends C.Construct
+class C.Symbol extends C.Construct
   constructor: (@name) ->
+    if @name instanceof C.Symbol
+      @name = @name.name
     super
-    scope = C.Scope.current_scope()
-    if not scope.var_defined this
-      scope.def_var this
     
   compile: -> C.Var.text_to_js_identifier @name
   
@@ -14,6 +10,11 @@ class C.Var extends C.Construct
   
   error_cant_set: -> @error "Can't set nonexistant var #{@name}"
   
+  @gensym = (s = "sym", yy) ->
+    now = (+new Date()).toString 36
+    rand = Math.floor(Math.random() * 1e6).toString 36
+    new this "#{s}-#{rand}-#{now}", yy
+
   @text_to_js_identifier = (text, conversions) ->
     if (@JS_KEYWORDS.indexOf text) >= 0
       return @wrapper text
@@ -124,3 +125,30 @@ class C.Var extends C.Construct
     "\t": "tab"
     "\n": "newline"
     "\r": "carriagereturn"
+
+
+
+class C.Var extends C.Symbol
+  constructor: ->
+    super
+    scope = C.current_scope()
+    scope.def_var this
+
+  @gensym: ->
+    sym = super
+    new this sym.name
+
+
+
+class C.Var.Set extends C.Construct
+  constructor: ({@_var, value}, yy) ->
+    super
+    @value = value
+    scope = C.find_scope_with_var @_var
+    if not scope
+      @_var.error_cant_set()
+
+  compile: ->
+    c_var = @_var._compile()
+    c_val = @value._compile()
+    "#{c_var} = #{c_val}"

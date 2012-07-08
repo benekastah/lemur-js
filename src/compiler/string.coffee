@@ -1,6 +1,3 @@
-L = lemur
-C = L.compiler
-
 class C.String extends C.Construct
   constructor: (@value) ->
     super
@@ -8,3 +5,5 @@ class C.String extends C.Construct
   compile: ->
     value = @value.replace /'/, "\\'"
     "'#{value}'"
+
+  toString: -> @compile()

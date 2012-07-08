@@ -1,6 +1,3 @@
-L = lemur
-C = L.compiler
-
 class C.Class extends C.Construct
   anon_id: 0
   
@@ -18,18 +15,18 @@ class C.Class extends C.Construct
     
   object_compile: (prefix, obj) ->
     pairs = for [prop, val] in obj.property_value_pairs
-      "#{prefix}.#{prop.compile()} = #{val.compile()}"
+      "#{prefix}.#{prop._compile()} = #{val._compile()}"
     pairs.join ';\n  '
     
   compile: ->
     statics = object_compile @name, @statics
     proto = object_compile "#{@name}.prototype", @prototype
     """
-        #{@name} = (function () {
-          #{@class_constructor.compile()};
-          #{statics};
-          #{proto};
-          return #{@name};
-        })()
-        """
+    #{@name} = (function () {
+      #{@class_constructor._compile()};
+      #{statics};
+      #{proto};
+      return #{@name};
+    })()
+    """
     

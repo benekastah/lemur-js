@@ -6,7 +6,6 @@ L = {}
 ## Do some setup of the global lemur object
 root.lemur = L
 core = L.core = {}
-L.compiler = {}
 
 ## Useful utility functions
 do ->
@@ -26,12 +25,12 @@ do ->
     
     
 ## Set up node.js
-if process?.title is "node"
-  require "./compiler"
-  require "./parser"
-    
+#if process?.title is "node"
+#  require "#{__dirname}/compiler"
+#  require "#{__dirname}/parser"
+
 ## Export module
 if exports? and module?
-  module.exports = L
+  #module.exports = L
 else if provide?
   provide "lemur", L

@@ -1,2 +1,2 @@
 require("coffee-script");
-require("./parser")
+require(__dirname + "/parser")
