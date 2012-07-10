@@ -17,3 +17,6 @@ class C.True extends C.Boolean
 
 class C.False extends C.Boolean
   compile: -> "false"
+
+class C.This extends C.Construct
+  compile: -> "this"

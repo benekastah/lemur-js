@@ -343,12 +343,34 @@
 
     __extends(ReturnedConstruct, _super);
 
-    function ReturnedConstruct(ret) {
-      ReturnedConstruct.__super__.constructor.apply(this, arguments);
+    function ReturnedConstruct() {
+      return ReturnedConstruct.__super__.constructor.apply(this, arguments);
     }
 
     ReturnedConstruct.prototype.compile = function() {
-      return "return " + (this.value._compile());
+      var c_value;
+      c_value = this.value._compile();
+      if (!this.disabled) {
+        return "return " + c_value;
+      } else {
+        return c_value;
+      }
+    };
+
+    ReturnedConstruct.prototype.tail_node = function(node) {
+      if (!(node != null)) {
+        return this;
+      } else {
+        if (node instanceof C.ReturnedConstruct) {
+          node = node.value;
+        }
+        this.value = node;
+        return node.returnedConstruct = this;
+      }
+    };
+
+    ReturnedConstruct.prototype.should_return = function() {
+      return this;
     };
 
     return ReturnedConstruct;
@@ -471,6 +493,22 @@
 
   })(C.Boolean);
 
+  C.This = (function(_super) {
+
+    __extends(This, _super);
+
+    function This() {
+      return This.__super__.constructor.apply(this, arguments);
+    }
+
+    This.prototype.compile = function() {
+      return "this";
+    };
+
+    return This;
+
+  })(C.Construct);
+
   C.Class = (function(_super) {
 
     __extends(Class, _super);
@@ -526,6 +564,62 @@
 
   })(C.Construct);
 
+  C.CodeFragment = (function(_super) {
+
+    __extends(CodeFragment, _super);
+
+    function CodeFragment(statements) {
+      this.statements = statements;
+      CodeFragment.__super__.constructor.apply(this, arguments);
+    }
+
+    CodeFragment.prototype.compile = function() {
+      var c_statements, stmt;
+      c_statements = (function() {
+        var _i, _len, _ref1, _results;
+        _ref1 = this.statements;
+        _results = [];
+        for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+          stmt = _ref1[_i];
+          _results.push(stmt.compile());
+        }
+        return _results;
+      }).call(this);
+      return "" + (c_statements.join(';\n'));
+    };
+
+    return CodeFragment;
+
+  })(C.Construct);
+
+  C.CommaGroup = (function(_super) {
+
+    __extends(CommaGroup, _super);
+
+    function CommaGroup(items) {
+      this.items = items;
+      CommaGroup.__super__.constructor.apply(this, arguments);
+    }
+
+    CommaGroup.prototype.compile = function() {
+      var c_items, item;
+      c_items = (function() {
+        var _i, _len, _ref1, _results;
+        _ref1 = this.items;
+        _results = [];
+        for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+          item = _ref1[_i];
+          _results.push(item._compile());
+        }
+        return _results;
+      }).call(this);
+      return "(" + (c_items.join(', ')) + ")";
+    };
+
+    return CommaGroup;
+
+  })(C.Construct);
+
   C.Function = (function(_super) {
 
     __extends(Function, _super);
@@ -546,37 +640,104 @@
     }
 
     Function.prototype.compile = function() {
-      var arg, c_args, c_body, c_name, i, last_stmt_index, scope, stmt, var_stmt;
+      var arg, arg_redefs, body, c_args, c_body, c_name, fake_arg, fake_arg_defs, fake_args, fake_fn_call, fn, i, result, ret, scope, stmt, sym_continue, sym_fn, sym_result, tail_recursive, to_return, to_return_context, var_stmt, _continuef, _continuet, _i, _len, _ref1, _ref2, _while;
       scope = new C.Scope();
+      _ref1 = this.will_autoreturn(), to_return = _ref1.to_return, to_return_context = _ref1.to_return_context;
+      tail_recursive = this.autoreturn && to_return.value instanceof C.FunctionCall && to_return.value.fn instanceof C.Symbol && to_return.value.fn.name === this.name.name;
+      body = this.body;
+      if (tail_recursive) {
+        sym_continue = C.Var.gensym("continue");
+        fake_args = {};
+        fake_arg_defs = [];
+        arg_redefs = [];
+        _ref2 = this.args;
+        for (i = _i = 0, _len = _ref2.length; _i < _len; i = ++_i) {
+          arg = _ref2[i];
+          fake_arg = fake_args[arg.name] = C.Var.gensym(arg);
+          fake_arg_defs.push(new C.Var.Set({
+            _var: fake_arg,
+            value: to_return.value.args[i]
+          }));
+          arg_redefs.push(new C.Var.Set({
+            _var: arg,
+            value: fake_arg,
+            must_exist: false
+          }));
+        }
+        _continuet = new C.Var.Set({
+          _var: sym_continue,
+          value: new C.True()
+        });
+        _continuef = new C.Var.Set({
+          _var: sym_continue,
+          value: new C.False()
+        });
+        fake_fn_call = new C.CodeFragment(fake_arg_defs.concat(arg_redefs, _continuet));
+        body.unshift(_continuef);
+        to_return.return_disabled = true;
+        to_return_context.tail_node(fake_fn_call);
+        fake_fn_call.returnedConstruct.disabled = true;
+        sym_result = C.Var.gensym("result");
+        sym_fn = C.Var.gensym("fn");
+        fn = new C.Var.Set({
+          _var: sym_fn,
+          value: new C.Function({
+            body: body
+          })
+        });
+        result = new C.Var.Set({
+          _var: sym_result,
+          value: new C.FunctionCall({
+            fn: sym_fn,
+            scope: new C.This()
+          })
+        });
+        ret = new C.If({
+          condition: new C.Not(sym_continue),
+          then: new C.ReturnedConstruct(sym_result)
+        });
+        _while = new C.WhileLoop({
+          condition: new C.True(),
+          body: [result, ret]
+        });
+        body = [fn, _while];
+      }
       c_name = L.core.to_type(this.name) === "string" ? this.name : this.name._compile();
       c_args = (function() {
-        var _i, _len, _ref1, _results;
-        _ref1 = this.args;
+        var _j, _len1, _ref3, _results;
+        _ref3 = this.args;
         _results = [];
-        for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
-          arg = _ref1[_i];
+        for (_j = 0, _len1 = _ref3.length; _j < _len1; _j++) {
+          arg = _ref3[_j];
           _results.push(arg._compile());
         }
         return _results;
       }).call(this);
-      last_stmt_index = this.body.length - 1;
-      if (this.autoreturn) {
-        c_body = (function() {
-          var _i, _len, _ref1, _results;
-          _ref1 = this.body;
-          _results = [];
-          for (i = _i = 0, _len = _ref1.length; _i < _len; i = ++_i) {
-            stmt = _ref1[i];
-            if (i === last_stmt_index) {
-              stmt = stmt.should_return();
-            }
-            _results.push(stmt._compile());
-          }
-          return _results;
-        }).call(this);
-      }
+      c_body = (function() {
+        var _j, _len1, _results;
+        _results = [];
+        for (i = _j = 0, _len1 = body.length; _j < _len1; i = ++_j) {
+          stmt = body[i];
+          _results.push(stmt._compile());
+        }
+        return _results;
+      })();
       var_stmt = scope.var_stmt();
       return "function " + c_name + "(" + (c_args.join(", ")) + ") {\n  " + var_stmt + (c_body.join(";\n  ")) + ";\n}";
+    };
+
+    Function.prototype.will_autoreturn = function() {
+      var ret, to_return;
+      if (this.autoreturn) {
+        to_return = this.body.pop();
+        to_return = to_return.should_return();
+        this.body.push(to_return);
+        ret = {
+          to_return: to_return.tail_node(),
+          to_return_context: to_return
+        };
+      }
+      return ret || {};
     };
 
     return Function;
@@ -594,6 +755,7 @@
       if ((_ref1 = this.scope) == null) {
         this.scope = new C.Null(null, yy);
       }
+      this.args || (this.args = []);
     }
 
     FunctionCall.prototype.compile = function() {
@@ -608,19 +770,60 @@
         args = this.args;
       }
       c_args = (function() {
-        var _i, _len, _ref1, _results;
-        _ref1 = this.args;
+        var _i, _len, _results;
         _results = [];
-        for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
-          arg = _ref1[_i];
+        for (_i = 0, _len = args.length; _i < _len; _i++) {
+          arg = args[_i];
           _results.push(arg._compile());
         }
         return _results;
-      }).call(this);
+      })();
       return "" + c_fn + (this.apply ? '.apply' : this.call ? '.call' : '') + "(" + (c_args.join(', ')) + ")";
     };
 
     return FunctionCall;
+
+  })(C.Construct);
+
+  C.If = (function(_super) {
+
+    __extends(If, _super);
+
+    function If(_arg) {
+      this.condition = _arg.condition, this.then = _arg.then, this._else = _arg._else;
+      If.__super__.constructor.apply(this, arguments);
+    }
+
+    If.prototype.compile = function() {
+      var c_cond, c_else, c_then, ret;
+      c_cond = this.condition.compile();
+      c_then = this.then.compile();
+      ret = "if (" + c_cond + ") {\n  " + c_then + "\n}";
+      if (this._else) {
+        c_else = this._else.compile();
+        ret = "" + ret + " else {\n  " + c_else + "\n}";
+      }
+      return ret;
+    };
+
+    If.prototype.should_return = function() {
+      this.then = this.then.should_return();
+      if (this._else) {
+        this._else = this._else.should_return();
+      }
+      return this;
+    };
+
+    If.prototype.tail_node = function() {
+      var _ref1, _ref2;
+      if (this._else != null) {
+        return (_ref1 = this._else).tail_node.apply(_ref1, arguments);
+      } else {
+        return (_ref2 = this.then).tail_node.apply(_ref2, arguments);
+      }
+    };
+
+    return If;
 
   })(C.Construct);
 
@@ -1035,6 +1238,22 @@
     _fn2(name, op);
   }
 
+  C.Raw = (function(_super) {
+
+    __extends(Raw, _super);
+
+    function Raw(text) {
+      this.text = text;
+    }
+
+    Raw.prototype.compile = function() {
+      return this.text;
+    };
+
+    return Raw;
+
+  })(C.Construct);
+
   C.Regex = (function(_super) {
 
     __extends(Regex, _super);
@@ -1178,6 +1397,9 @@
       if (s == null) {
         s = "sym";
       }
+      if (s instanceof C.Symbol) {
+        s = s.name;
+      }
       now = (+new Date()).toString(36);
       rand = Math.floor(Math.random() * 1e6).toString(36);
       return new this("" + s + "-" + rand + "-" + now, yy);
@@ -1268,12 +1490,6 @@
       scope.def_var(this);
     }
 
-    Var.gensym = function() {
-      var sym;
-      sym = Var.__super__.constructor.gensym.apply(this, arguments);
-      return new this(sym.name);
-    };
-
     return Var;
 
   })(C.Symbol);
@@ -1283,12 +1499,15 @@
     __extends(Set, _super);
 
     function Set(_arg, yy) {
-      var scope, value;
-      this._var = _arg._var, value = _arg.value;
+      var scope, value, _ref1;
+      this._var = _arg._var, value = _arg.value, this.must_exist = _arg.must_exist;
       Set.__super__.constructor.apply(this, arguments);
       this.value = value;
       scope = C.find_scope_with_var(this._var);
-      if (!scope) {
+      if ((_ref1 = this.must_exist) == null) {
+        this.must_exist = true;
+      }
+      if (this.must_exist && !scope) {
         this._var.error_cant_set();
       }
     }

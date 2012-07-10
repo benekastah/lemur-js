@@ -36,13 +36,8 @@
     };
   })();
 
-  if ((typeof process !== "undefined" && process !== null ? process.title : void 0) === "node") {
-    require("" + __dirname + "/compiler");
-    require("" + __dirname + "/parser");
-  }
-
   if ((typeof exports !== "undefined" && exports !== null) && (typeof module !== "undefined" && module !== null)) {
-    module.exports = L;
+
   } else if (typeof provide !== "undefined" && provide !== null) {
     provide("lemur", L);
   }

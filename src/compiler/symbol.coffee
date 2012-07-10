@@ -11,6 +11,7 @@ class C.Symbol extends C.Construct
   error_cant_set: -> @error "Can't set nonexistant var #{@name}"
   
   @gensym = (s = "sym", yy) ->
+    s = s.name if s instanceof C.Symbol
     now = (+new Date()).toString 36
     rand = Math.floor(Math.random() * 1e6).toString 36
     new this "#{s}-#{rand}-#{now}", yy
@@ -134,18 +135,15 @@ class C.Var extends C.Symbol
     scope = C.current_scope()
     scope.def_var this
 
-  @gensym: ->
-    sym = super
-    new this sym.name
-
 
 
 class C.Var.Set extends C.Construct
-  constructor: ({@_var, value}, yy) ->
+  constructor: ({@_var, value, @must_exist}, yy) ->
     super
     @value = value
     scope = C.find_scope_with_var @_var
-    if not scope
+    @must_exist ?= true
+    if @must_exist and not scope
       @_var.error_cant_set()
 
   compile: ->

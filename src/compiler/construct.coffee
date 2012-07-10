@@ -37,7 +37,20 @@ class C.Construct
   should_return: -> new C.ReturnedConstruct this, @yy
 
 class C.ReturnedConstruct extends C.Construct
-  constructor: (ret) ->
-    super
+  compile: ->
+    c_value = @value._compile()
+    if not @disabled
+      "return #{c_value}"
+    else
+      c_value
 
-  compile: -> "return #{@value._compile()}"
+  tail_node: (node) ->
+    if not node?
+      this
+    else
+      if node instanceof C.ReturnedConstruct
+        node = node.value
+      @value = node
+      node.returnedConstruct = this
+
+  should_return: -> this
