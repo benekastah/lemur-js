@@ -4,6 +4,9 @@ class C.Function extends C.Construct
     @args ?= []
     @body ?= []
     super
+
+    if @args instanceof C.Array
+      @args = @args.items
     
   compile: ->
     scope = new C.Scope()

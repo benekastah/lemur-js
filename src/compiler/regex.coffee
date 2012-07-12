@@ -3,4 +3,4 @@ class C.Regex extends C.Construct
     super
     
   compile: ->
-    "/#{@pattern}/#{@modifiers}"
+    "/#{@pattern}/#{@modifiers ? ''}"

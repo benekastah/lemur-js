@@ -283,6 +283,7 @@
   })();
 
   C.Construct = (function() {
+    var Noop;
 
     function Construct(value, yy_or_node_or_num) {
       var _ref1;
@@ -333,6 +334,33 @@
 
     Construct.prototype.should_return = function() {
       return new C.ReturnedConstruct(this, this.yy);
+    };
+
+    Construct.prototype.Noop = Noop = (function() {
+
+      function Noop(c) {
+        this.constructor = c;
+      }
+
+      return Noop;
+
+    })();
+
+    Construct.prototype.clone = function() {
+      var Class, cl, np, p, prop, val, _ref1;
+      Class = this.constructor;
+      p = Class.prototype;
+      np = this.Noop.prototype;
+      this.Noop.prototype = p;
+      cl = new Noop(Class);
+      this.Noop.prototype = np;
+      for (prop in this) {
+        if (!__hasProp.call(this, prop)) continue;
+        val = this[prop];
+        val = (_ref1 = val != null ? typeof val.clone === "function" ? val.clone() : void 0 : void 0) != null ? _ref1 : val;
+        cl[prop] = val;
+      }
+      return cl;
     };
 
     return Construct;
@@ -637,6 +665,9 @@
         this.body = [];
       }
       Function.__super__.constructor.apply(this, arguments);
+      if (this.args instanceof C.Array) {
+        this.args = this.args.items;
+      }
     }
 
     Function.prototype.compile = function() {
@@ -1244,6 +1275,7 @@
 
     function Raw(text) {
       this.text = text;
+      Raw.__super__.constructor.apply(this, arguments);
     }
 
     Raw.prototype.compile = function() {
@@ -1264,7 +1296,8 @@
     }
 
     Regex.prototype.compile = function() {
-      return "/" + this.pattern + "/" + this.modifiers;
+      var _ref1;
+      return "/" + this.pattern + "/" + ((_ref1 = this.modifiers) != null ? _ref1 : '');
     };
 
     return Regex;
@@ -1503,12 +1536,15 @@
       this._var = _arg._var, value = _arg.value, this.must_exist = _arg.must_exist;
       Set.__super__.constructor.apply(this, arguments);
       this.value = value;
-      scope = C.find_scope_with_var(this._var);
       if ((_ref1 = this.must_exist) == null) {
         this.must_exist = true;
       }
+      scope = C.find_scope_with_var(this._var);
       if (this.must_exist && !scope) {
         this._var.error_cant_set();
+      }
+      if (scope != null) {
+        scope.set_var(this._var, this.value);
       }
     }
 

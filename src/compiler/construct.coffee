@@ -36,6 +36,21 @@ class C.Construct
     
   should_return: -> new C.ReturnedConstruct this, @yy
 
+  Noop: class Noop
+    constructor: (c) -> @constructor = c
+
+  clone: ->
+    Class = @constructor
+    p = Class::
+    np = @Noop::
+    @Noop:: = p
+    cl = new Noop Class
+    @Noop:: = np
+    for own prop, val of this
+      val = val?.clone?() ? val
+      cl[prop] = val
+    cl
+
 class C.ReturnedConstruct extends C.Construct
   compile: ->
     c_value = @value._compile()

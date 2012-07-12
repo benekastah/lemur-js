@@ -141,10 +141,12 @@ class C.Var.Set extends C.Construct
   constructor: ({@_var, value, @must_exist}, yy) ->
     super
     @value = value
-    scope = C.find_scope_with_var @_var
     @must_exist ?= true
+
+    scope = C.find_scope_with_var @_var
     if @must_exist and not scope
       @_var.error_cant_set()
+    scope?.set_var @_var, @value
 
   compile: ->
     c_var = @_var._compile()
