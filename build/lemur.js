@@ -286,7 +286,7 @@
     var Noop;
 
     function Construct(value, yy_or_node_or_num) {
-      var _ref1;
+      var _ref1, _ref2;
       this.value = value;
       if (yy_or_node_or_num instanceof Construct) {
         this.transfer_node = yy_or_node_or_num;
@@ -300,7 +300,7 @@
       } else {
         this.yy = yy_or_node_or_num;
       }
-      this.line_number = (_ref1 = this.yy) != null ? _ref1.lexer.yylineno : void 0;
+      this.line_number = (_ref1 = this.yy) != null ? (_ref2 = _ref1.lexer) != null ? _ref2.yylineno : void 0 : void 0;
     }
 
     Construct.prototype.compile = function() {
@@ -652,7 +652,7 @@
 
     __extends(Function, _super);
 
-    function Function(_arg) {
+    function Function(_arg, yy) {
       var _ref1, _ref2, _ref3;
       this.name = _arg.name, this.args = _arg.args, this.body = _arg.body, this.autoreturn = _arg.autoreturn;
       if ((_ref1 = this.name) == null) {
@@ -664,6 +664,9 @@
       if ((_ref3 = this.body) == null) {
         this.body = [];
       }
+      if (!(this.args instanceof C.Function.ArgsList)) {
+        this.args = new C.Function.ArgsList(this.args, yy);
+      }
       Function.__super__.constructor.apply(this, arguments);
       if (this.args instanceof C.Array) {
         this.args = this.args.items;
@@ -671,19 +674,24 @@
     }
 
     Function.prototype.compile = function() {
-      var arg, arg_redefs, body, c_args, c_body, c_name, fake_arg, fake_arg_defs, fake_args, fake_fn_call, fn, i, result, ret, scope, stmt, sym_continue, sym_fn, sym_result, tail_recursive, to_return, to_return_context, var_stmt, _continuef, _continuet, _i, _len, _ref1, _ref2, _while;
+      var add_to_body, arg, arg_redefs, args, body, c_args, c_body, c_name, fake_arg, fake_arg_defs, fake_args, fake_fn_call, fn, i, last_arg, rest, result, ret, scope, stmt, sym_continue, sym_fn, sym_result, tail_recursive, to_return, to_return_context, var_stmt, _continuef, _continuet, _i, _len, _ref1, _ref2, _ref3, _while;
       scope = new C.Scope();
       _ref1 = this.will_autoreturn(), to_return = _ref1.to_return, to_return_context = _ref1.to_return_context;
       tail_recursive = this.autoreturn && to_return.value instanceof C.FunctionCall && to_return.value.fn instanceof C.Symbol && to_return.value.fn.name === this.name.name;
+      _ref2 = this.args._compile(), args = _ref2[0], add_to_body = _ref2[1], rest = _ref2[2];
       body = this.body;
       if (tail_recursive) {
         sym_continue = C.Var.gensym("continue");
         fake_args = {};
         fake_arg_defs = [];
         arg_redefs = [];
-        _ref2 = this.args;
-        for (i = _i = 0, _len = _ref2.length; _i < _len; i = ++_i) {
-          arg = _ref2[i];
+        last_arg = this.args.length - 1;
+        _ref3 = this.args;
+        for (i = _i = 0, _len = _ref3.length; _i < _len; i = ++_i) {
+          arg = _ref3[i];
+          if (rest && i === last_arg) {
+            arg = rest;
+          }
           fake_arg = fake_args[arg.name] = C.Var.gensym(arg);
           fake_arg_defs.push(new C.Var.Set({
             _var: fake_arg,
@@ -735,15 +743,14 @@
       }
       c_name = L.core.to_type(this.name) === "string" ? this.name : this.name._compile();
       c_args = (function() {
-        var _j, _len1, _ref3, _results;
-        _ref3 = this.args;
+        var _j, _len1, _results;
         _results = [];
-        for (_j = 0, _len1 = _ref3.length; _j < _len1; _j++) {
-          arg = _ref3[_j];
+        for (_j = 0, _len1 = args.length; _j < _len1; _j++) {
+          arg = args[_j];
           _results.push(arg._compile());
         }
         return _results;
-      }).call(this);
+      })();
       c_body = (function() {
         var _j, _len1, _results;
         _results = [];
@@ -753,8 +760,10 @@
         }
         return _results;
       })();
+      c_body = "" + (c_body.join(';\n  ')) + ";";
+      c_body = add_to_body != null ? "" + (add_to_body._compile()) + ";\n  " + c_body : c_body;
       var_stmt = scope.var_stmt();
-      return "function " + c_name + "(" + (c_args.join(", ")) + ") {\n  " + var_stmt + (c_body.join(";\n  ")) + ";\n}";
+      return "function " + c_name + "(" + (c_args.join(", ")) + ") {\n  " + var_stmt + c_body + ";\n}";
     };
 
     Function.prototype.will_autoreturn = function() {
@@ -772,6 +781,39 @@
     };
 
     return Function;
+
+  })(C.Construct);
+
+  C.Function.ArgsList = (function(_super) {
+
+    __extends(ArgsList, _super);
+
+    function ArgsList(args) {
+      this.args = args;
+      ArgsList.__super__.constructor.apply(this, arguments);
+    }
+
+    ArgsList.prototype.compile = function() {
+      var add_to_body, args, c_rest, rest, _base, _ref1;
+      args = (typeof (_base = this.args).slice === "function" ? _base.slice() : void 0) || ((_ref1 = this.args.items) != null ? _ref1.slice() : void 0);
+      if (args.length) {
+        rest = args.pop();
+        if (!(rest instanceof C.Rest)) {
+          args.push(rest);
+          rest = null;
+        } else {
+          rest = rest.sym;
+        }
+        if (rest != null) {
+          rest = new C.Var(rest, rest.yy);
+          c_rest = rest._compile();
+          add_to_body = new C.Raw("" + c_rest + " = Array.prototype.slice.call(arguments, " + args.length + ")");
+        }
+      }
+      return [args, add_to_body, rest];
+    };
+
+    return ArgsList;
 
   })(C.Construct);
 
@@ -1304,6 +1346,26 @@
 
   })(C.Construct);
 
+  C.Rest = (function(_super) {
+
+    __extends(Rest, _super);
+
+    function Rest(sym) {
+      this.sym = sym;
+      if (!(this.sym instanceof C.Symbol)) {
+        this.error("A rest param must be a symbol.");
+      }
+      Rest.__super__.constructor.apply(this, arguments);
+    }
+
+    Rest.prototype.compile = function() {
+      return this.sym._compile();
+    };
+
+    return Rest;
+
+  })(C.Construct);
+
   C.Scope = (function() {
 
     function Scope(config) {
@@ -1556,6 +1618,99 @@
     };
 
     return Set;
+
+  })(C.Construct);
+
+  C.TryCatch = (function(_super) {
+
+    __extends(TryCatch, _super);
+
+    function TryCatch(_arg) {
+      var _ref1, _ref2, _ref3, _ref4;
+      this._try = _arg._try, this.err_name = _arg.err_name, this._catch = _arg._catch, this._finally = _arg._finally;
+      if ((_ref1 = this.err_name) == null) {
+        this.err_name = C.Symbol.gensym("err");
+      }
+      if ((_ref2 = this._try) == null) {
+        this._try = [];
+      }
+      if ((_ref3 = this._catch) == null) {
+        this._catch = [];
+      }
+      if ((_ref4 = this._finally) == null) {
+        this._finally = [];
+      }
+      TryCatch.__super__.constructor.apply(this, arguments);
+    }
+
+    TryCatch.prototype.compile = function() {
+      var c_catch, c_err_name, c_finally, c_try, item;
+      c_try = (function() {
+        var _i, _len, _ref1, _results;
+        _ref1 = this._try;
+        _results = [];
+        for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+          item = _ref1[_i];
+          _results.push(item._compile());
+        }
+        return _results;
+      }).call(this);
+      c_err_name = this.err_name._compile();
+      c_catch = (function() {
+        var _i, _len, _ref1, _results;
+        _ref1 = this._catch;
+        _results = [];
+        for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+          item = _ref1[_i];
+          _results.push(item._compile());
+        }
+        return _results;
+      }).call(this);
+      c_finally = (function() {
+        var _i, _len, _ref1, _results;
+        _ref1 = this._finally;
+        _results = [];
+        for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+          item = _ref1[_i];
+          _results.push(item._compile());
+        }
+        return _results;
+      }).call(this);
+      c_try = c_try.length ? "\n" + (c_try.join(';\n')) + ";\n" : "";
+      c_catch = c_catch.length ? "\n" + (c_catch.join(';\n')) + ";\n" : "";
+      c_finally = c_finally.length ? " finally {\n" + (c_finally.join(';\n')) + ";\n}" : "";
+      return "try {" + c_try + "} catch (" + c_err_name + ") {" + c_catch + "}" + c_finally;
+    };
+
+    TryCatch.prototype.should_return = function() {
+      var c_last, f_last, t_last;
+      if (this._finally.length) {
+        f_last = this._finally.pop();
+        this._finally.push(f_last.should_return());
+      } else {
+        if (this._try.length) {
+          t_last = this._try.pop();
+          this._try.push(t_last.should_return());
+        }
+        if (this._catch.length) {
+          c_last = this._catch.pop();
+          this._catch.push(c_last.should_return());
+        }
+      }
+      return this;
+    };
+
+    TryCatch.prototype.tail_node = function() {
+      if (this._finally.length) {
+        return this._finally[this._finally.length - 1];
+      } else if (this._catch.length) {
+        return this._catch[this._catch.length - 1];
+      } else {
+        return this._try[this._try.length - 1];
+      }
+    };
+
+    return TryCatch;
 
   })(C.Construct);
 

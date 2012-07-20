@@ -11,7 +11,7 @@ class C.Construct
     else
       @yy = yy_or_node_or_num
       
-    @line_number = @yy?.lexer.yylineno
+    @line_number = @yy?.lexer?.yylineno
     
   compile: ->
     if @value?

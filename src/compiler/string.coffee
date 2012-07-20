@@ -1,3 +1,4 @@
+
 class C.String extends C.Construct
   constructor: (@value) ->
     super

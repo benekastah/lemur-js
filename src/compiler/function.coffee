@@ -1,8 +1,12 @@
 class C.Function extends C.Construct
-  constructor: ({@name, @args, @body, @autoreturn}) ->
+  constructor: ({@name, @args, @body, @autoreturn}, yy) ->
     @name ?= ''
     @args ?= []
     @body ?= []
+
+    if @args not instanceof C.Function.ArgsList
+      @args = new C.Function.ArgsList @args, yy
+
     super
 
     if @args instanceof C.Array
@@ -17,13 +21,17 @@ class C.Function extends C.Construct
       to_return.value.fn instanceof C.Symbol and
       to_return.value.fn.name is @name.name
       
+    [args, add_to_body, rest] = @args._compile()
     body = @body
     if tail_recursive
       sym_continue = C.Var.gensym "continue"
       fake_args = {}
       fake_arg_defs = []
       arg_redefs = []
+      last_arg = @args.length - 1
       for arg, i in @args
+        if rest and i is last_arg
+          arg = rest
         fake_arg = fake_args[arg.name] = C.Var.gensym arg
         fake_arg_defs.push (new C.Var.Set _var: fake_arg, value: to_return.value.args[i])
         arg_redefs.push (new C.Var.Set _var: arg, value: fake_arg, must_exist: false)
@@ -51,12 +59,15 @@ class C.Function extends C.Construct
 
       
     c_name = if L.core.to_type(@name) is "string" then @name else @name._compile()
-    c_args = for arg in @args then arg._compile()
+    c_args = for arg in args then arg._compile()
     c_body = for stmt, i in body then stmt._compile()
+    c_body = "#{c_body.join ';\n  '};"
+    c_body = if add_to_body? then "#{add_to_body._compile()};\n  #{c_body}" else c_body
+
     var_stmt = scope.var_stmt()
     """
     function #{c_name}(#{c_args.join ", "}) {
-      #{var_stmt}#{c_body.join ";\n  "};
+      #{var_stmt}#{c_body};
     }
     """
 
@@ -69,6 +80,32 @@ class C.Function extends C.Construct
         to_return: to_return.tail_node()
         to_return_context: to_return
     ret or {}
+
+
+
+class C.Function.ArgsList extends C.Construct
+  constructor: (@args) ->
+    super
+
+  compile: ->
+    args = @args.slice?() or @args.items?.slice()
+    if args.length
+      rest = args.pop()
+      if rest not instanceof C.Rest
+        args.push rest
+        rest = null
+      else
+        rest = rest.sym
+
+      if rest?
+        rest = new C.Var rest, rest.yy
+        c_rest = rest._compile()
+        add_to_body = new C.Raw "#{c_rest} = Array.prototype.slice.call(arguments, #{args.length})"
+
+    [args, add_to_body, rest]
+
+
+
 
 class C.FunctionCall extends C.Construct
   constructor: ({@fn, @args, @scope, @apply}, yy) ->
