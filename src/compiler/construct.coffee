@@ -21,6 +21,10 @@ class C.Construct
 
   _compile: -> @compile arguments...
 
+  toString: -> if @value?.toString? then @value.toString() else "#{@value}"
+
+  valueOf: -> @value
+
   error: (message) ->
     filename = C.current_filename
     location = ""

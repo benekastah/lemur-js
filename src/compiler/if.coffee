@@ -4,8 +4,8 @@ class C.If extends C.Construct
     super
 
   compile: ->
-    c_cond = @condition.compile()
-    c_then = @then.compile()
+    c_cond = @condition._compile()
+    c_then = @then._compile()
     ret = """
     if (#{c_cond}) {
       #{c_then}
@@ -13,7 +13,7 @@ class C.If extends C.Construct
     """
 
     if @_else
-      c_else = @_else.compile()
+      c_else = @_else._compile()
       ret = """
         #{ret} else {
           #{c_else}
@@ -32,3 +32,14 @@ class C.If extends C.Construct
       @_else.tail_node arguments...
     else
       @then.tail_node arguments...
+
+class C.IfTernary extends C.If
+  constructor: ({@_else}, yy) ->
+    super
+    @_else ?= new C.Null yy
+
+  compile: ->
+    c_cond = @condition._compile()
+    c_then = @then._compile()
+    c_else = @_else._compile()
+    "(#{c_cond} ? #{c_then} : #{c_else})"

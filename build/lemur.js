@@ -315,6 +315,19 @@
       return this.compile.apply(this, arguments);
     };
 
+    Construct.prototype.toString = function() {
+      var _ref1;
+      if (((_ref1 = this.value) != null ? _ref1.toString : void 0) != null) {
+        return this.value.toString();
+      } else {
+        return "" + this.value;
+      }
+    };
+
+    Construct.prototype.valueOf = function() {
+      return this.value;
+    };
+
     Construct.prototype.error = function(message) {
       var filename, location, type;
       filename = C.current_filename;
@@ -763,7 +776,7 @@
       c_body = "" + (c_body.join(';\n  ')) + ";";
       c_body = add_to_body != null ? "" + (add_to_body._compile()) + ";\n  " + c_body : c_body;
       var_stmt = scope.var_stmt();
-      return "function " + c_name + "(" + (c_args.join(", ")) + ") {\n  " + var_stmt + c_body + ";\n}";
+      return "function " + c_name + "(" + (c_args.join(", ")) + ") {\n  " + var_stmt + c_body + "\n}";
     };
 
     Function.prototype.will_autoreturn = function() {
@@ -869,11 +882,11 @@
 
     If.prototype.compile = function() {
       var c_cond, c_else, c_then, ret;
-      c_cond = this.condition.compile();
-      c_then = this.then.compile();
+      c_cond = this.condition._compile();
+      c_then = this.then._compile();
       ret = "if (" + c_cond + ") {\n  " + c_then + "\n}";
       if (this._else) {
-        c_else = this._else.compile();
+        c_else = this._else._compile();
         ret = "" + ret + " else {\n  " + c_else + "\n}";
       }
       return ret;
@@ -899,6 +912,31 @@
     return If;
 
   })(C.Construct);
+
+  C.IfTernary = (function(_super) {
+
+    __extends(IfTernary, _super);
+
+    function IfTernary(_arg, yy) {
+      var _ref1;
+      this._else = _arg._else;
+      IfTernary.__super__.constructor.apply(this, arguments);
+      if ((_ref1 = this._else) == null) {
+        this._else = new C.Null(yy);
+      }
+    }
+
+    IfTernary.prototype.compile = function() {
+      var c_cond, c_else, c_then;
+      c_cond = this.condition._compile();
+      c_then = this.then._compile();
+      c_else = this._else._compile();
+      return "(" + c_cond + " ? " + c_then + " : " + c_else + ")";
+    };
+
+    return IfTernary;
+
+  })(C.If);
 
   C.Loop = (function(_super) {
 
@@ -1579,11 +1617,18 @@
     __extends(Var, _super);
 
     function Var() {
-      var scope;
       Var.__super__.constructor.apply(this, arguments);
-      scope = C.current_scope();
-      scope.def_var(this);
     }
+
+    Var.prototype.compile = function() {
+      var scope;
+      if (!(this.defined != null)) {
+        scope = C.current_scope();
+        scope.def_var(this);
+        this.defined = true;
+      }
+      return Var.__super__.compile.apply(this, arguments);
+    };
 
     return Var;
 
@@ -1594,13 +1639,19 @@
     __extends(Set, _super);
 
     function Set(_arg, yy) {
-      var scope, value, _ref1;
+      var value, _ref1;
       this._var = _arg._var, value = _arg.value, this.must_exist = _arg.must_exist;
       Set.__super__.constructor.apply(this, arguments);
       this.value = value;
       if ((_ref1 = this.must_exist) == null) {
         this.must_exist = true;
       }
+    }
+
+    Set.prototype.compile = function() {
+      var c_val, c_var, scope;
+      c_var = this._var._compile();
+      c_val = this.value._compile();
       scope = C.find_scope_with_var(this._var);
       if (this.must_exist && !scope) {
         this._var.error_cant_set();
@@ -1608,12 +1659,6 @@
       if (scope != null) {
         scope.set_var(this._var, this.value);
       }
-    }
-
-    Set.prototype.compile = function() {
-      var c_val, c_var;
-      c_var = this._var._compile();
-      c_val = this.value._compile();
       return "" + c_var + " = " + c_val;
     };
 

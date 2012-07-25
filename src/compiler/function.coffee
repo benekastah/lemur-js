@@ -1,3 +1,4 @@
+
 class C.Function extends C.Construct
   constructor: ({@name, @args, @body, @autoreturn}, yy) ->
     @name ?= ''
@@ -67,7 +68,7 @@ class C.Function extends C.Construct
     var_stmt = scope.var_stmt()
     """
     function #{c_name}(#{c_args.join ", "}) {
-      #{var_stmt}#{c_body};
+      #{var_stmt}#{c_body}
     }
     """
 

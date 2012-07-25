@@ -132,8 +132,13 @@ class C.Symbol extends C.Construct
 class C.Var extends C.Symbol
   constructor: ->
     super
-    scope = C.current_scope()
-    scope.def_var this
+
+  compile: ->
+    if not @defined?
+      scope = C.current_scope()
+      scope.def_var this
+      @defined = true
+    super
 
 
 
@@ -143,12 +148,13 @@ class C.Var.Set extends C.Construct
     @value = value
     @must_exist ?= true
 
+  compile: ->
+    c_var = @_var._compile()
+    c_val = @value._compile()
+
     scope = C.find_scope_with_var @_var
     if @must_exist and not scope
       @_var.error_cant_set()
     scope?.set_var @_var, @value
 
-  compile: ->
-    c_var = @_var._compile()
-    c_val = @value._compile()
     "#{c_var} = #{c_val}"
