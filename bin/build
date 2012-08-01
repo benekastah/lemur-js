@@ -20,4 +20,4 @@ parser_scripts = get_files "#{src}/parser"
 compiler_scripts = get_files "#{src}/compiler", ["compiler", "construct"]
 
 puts "Building lemur..."
-system "coffee -j #{dirname}/build/lemur.js -c #{src}/core #{parser_scripts} #{compiler_scripts}"
+system "coffee -j #{dirname}/build/lemur.js -c #{src}/core #{compiler_scripts}"

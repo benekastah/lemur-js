@@ -1,6 +1,10 @@
 class C.Object extends C.Construct
-  constructor: (@property_value_pairs=[]) ->
+  constructor: (pairs = []) ->
     super
+    @property_value_pairs = for pair in pairs
+      if pair instanceof C.List
+        pair.quoted = true
+      eval pair._compile()
     
   compile: ->
     pairs = for [prop, val] in @property_value_pairs

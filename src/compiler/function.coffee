@@ -26,11 +26,13 @@ class C.Function extends C.Construct
     body = @body
     if tail_recursive
       sym_continue = C.Var.gensym "continue"
+      set_continue = new C.Var.Set _var: sym_continue, value: new C.Null()
+
       fake_args = {}
       fake_arg_defs = []
       arg_redefs = []
       last_arg = @args.length - 1
-      for arg, i in @args
+      for arg, i in @args.args
         if rest and i is last_arg
           arg = rest
         fake_arg = fake_args[arg.name] = C.Var.gensym arg
@@ -39,7 +41,7 @@ class C.Function extends C.Construct
 
       _continuet = new C.Var.Set _var: sym_continue, value: new C.True()
       _continuef = new C.Var.Set _var: sym_continue, value: new C.False()
-      fake_fn_call = new C.CodeFragment (fake_arg_defs.concat arg_redefs, _continuet)
+      fake_fn_call = new C.CommaGroup [fake_arg_defs..., arg_redefs..., _continuet]
       body.unshift _continuef
 
       to_return.return_disabled = true
@@ -56,7 +58,7 @@ class C.Function extends C.Construct
 
       ret = new C.If condition: (new C.Not sym_continue), then: new C.ReturnedConstruct sym_result
       _while = new C.WhileLoop condition: new C.True(), body: [result, ret]
-      body = [fn, _while]
+      body = [set_continue, fn, _while]
 
       
     c_name = if L.core.to_type(@name) is "string" then @name else @name._compile()
@@ -73,18 +75,19 @@ class C.Function extends C.Construct
     """
 
   will_autoreturn: ->
-    if @autoreturn
+    if @autoreturn and @body.length
       to_return = @body.pop()
       to_return = to_return.should_return()
       @body.push to_return
       ret =
         to_return: to_return.tail_node()
         to_return_context: to_return
-    ret or {}
+    ret or new C.Null()
 
 
 
 class C.Function.ArgsList extends C.Construct
+  slice_fn: "Array.prototype.slice.call"
   constructor: (@args) ->
     super
 
@@ -101,7 +104,7 @@ class C.Function.ArgsList extends C.Construct
       if rest?
         rest = new C.Var rest, rest.yy
         c_rest = rest._compile()
-        add_to_body = new C.Raw "#{c_rest} = Array.prototype.slice.call(arguments, #{args.length})"
+        add_to_body = new C.Raw "#{c_rest} = #{@slice_fn}(arguments, #{args.length})"
 
     [args, add_to_body, rest]
 
@@ -109,7 +112,7 @@ class C.Function.ArgsList extends C.Construct
 
 
 class C.FunctionCall extends C.Construct
-  constructor: ({@fn, @args, @scope, @apply}, yy) ->
+  constructor: ({@fn, @args, @scope, @apply, @instantiate}, yy) ->
     @call = !!@scope
     @scope ?= new C.Null null, yy
     @args or= []
@@ -124,4 +127,8 @@ class C.FunctionCall extends C.Construct
     else
       args = @args
     c_args = for arg in args then arg._compile()
-    "#{c_fn}#{if @apply then '.apply' else if @call then '.call' else ''}(#{c_args.join ', '})"
+
+    instantiate = if @instantiate then "new " else ""
+
+    "#{instantiate}#{c_fn}#{if @apply then '.apply' else if @call then '.call' else ''}(#{c_args.join ', '})"
+

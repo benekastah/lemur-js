@@ -43,3 +43,11 @@ class C.IfTernary extends C.If
     c_then = @then._compile()
     c_else = @_else._compile()
     "(#{c_cond} ? #{c_then} : #{c_else})"
+
+  should_return: ->
+    super
+    @then.disabled = true
+    @_else?.disabled = true
+    ret = new C.ReturnedConstruct this
+    ret.tail_node = => @tail_node arguments...
+    ret

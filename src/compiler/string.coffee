@@ -4,7 +4,7 @@ class C.String extends C.Construct
     super
     
   compile: ->
-    value = @value.replace /'/, "\\'"
+    value = @value.replace(/'/g, "\\'").replace(/\n/g, '\\n')
     "'#{value}'"
 
   toString: -> @compile()

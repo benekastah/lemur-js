@@ -38,3 +38,7 @@ class C.TryCatch extends C.Construct
       @_catch[@_catch.length - 1]
     else
       @_try[@_try.length - 1]
+
+class C.TryCatchExpression extends C.TryCatch
+  compile: ->
+    "(function () { #{super}; })()"

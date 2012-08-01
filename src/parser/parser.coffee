@@ -1,6 +1,6 @@
 if process?.title is "node"
   require 'coffee-script'
-  L = lemur ? require '../core'
+  L = lemur ? require '__dirname/../core'
   JisonParser = (require 'jison').Parser
 
   class Parser extends JisonParser
