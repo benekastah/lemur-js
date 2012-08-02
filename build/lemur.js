@@ -54,7 +54,8 @@
       if (config == null) {
         config = {};
       }
-      this.predefined = config.predefined, this.parent_context = config.parent_context;
+      this.predefined = config.predefined, this.parent_context = config.parent_context, this.include_directory = config.include_directory;
+      this.cached_includes = {};
       C.current_context = this;
       this.scope_stack = ((_ref1 = this.parent_context) != null ? _ref1.scope_stack.slice() : void 0) || [];
       this.new_scope();
@@ -649,6 +650,7 @@
       c_body = "" + (c_body.join(';\n  ')) + ";";
       c_body = add_to_body != null ? "" + (add_to_body._compile()) + ";\n  " + c_body : c_body;
       var_stmt = scope.var_stmt();
+      C.pop_scope();
       return "function " + c_name + "(" + (c_args.join(", ")) + ") {\n  " + var_stmt + c_body + "\n}";
     };
 

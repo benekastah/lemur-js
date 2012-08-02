@@ -68,6 +68,7 @@ class C.Function extends C.Construct
     c_body = if add_to_body? then "#{add_to_body._compile()};\n  #{c_body}" else c_body
 
     var_stmt = scope.var_stmt()
+    C.pop_scope()
     """
     function #{c_name}(#{c_args.join ", "}) {
       #{var_stmt}#{c_body}

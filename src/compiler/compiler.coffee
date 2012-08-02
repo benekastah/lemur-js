@@ -2,7 +2,8 @@ L = lemur
 
 C = class L.Compiler
   constructor: (config={}) ->
-    {@predefined, @parent_context} = config
+    {@predefined, @parent_context, @include_directory} = config
+    @cached_includes = {}
 
     C.current_context = this
     @scope_stack = @parent_context?.scope_stack.slice() || []
